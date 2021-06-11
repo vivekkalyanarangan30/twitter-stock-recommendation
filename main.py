@@ -21,7 +21,7 @@ def check_stock_symbol(flag=False, companies_file='companylist.csv'):
     df = pd.read_csv(companies_file, usecols=[0])
 
     while flag is False:
-        symbol = raw_input('Enter a stock symbol to retrieve data from: ').upper()
+        symbol = input('Enter a stock symbol to retrieve data from: ').upper()
         for index in range(len(df)):
             if df['Symbol'][index] == symbol:
                 flag = True
@@ -44,7 +44,8 @@ def stock_forecasting(df):
     forecast_col = 'Close'
     forecast_out = int(math.ceil(0.1*len(df)))
     df['Label'] = df[[forecast_col]].shift(-forecast_out)
-
+    print(df.head())
+    df.to_csv('tmp.csv', index=False)
     X = np.array(df.drop(['Label'], axis=1))
     X = preprocessing.scale(X)
     X_forecast = X[-forecast_out:]
@@ -88,6 +89,7 @@ def retrieving_tweets_polarity(symbol):
     tweets = tweepy.Cursor(user.search, q=str(symbol), tweet_mode='extended', lang='en').items(ct.num_of_tweets)
 
     tweet_list = []
+    report = []
     global_polarity = 0
     for tweet in tweets:
         tw = tweet.full_text
@@ -97,9 +99,10 @@ def retrieving_tweets_polarity(symbol):
             polarity += sentence.sentiment.polarity
             global_polarity += sentence.sentiment.polarity
         tweet_list.append(Tweet(tw, polarity))
+        report.append((tw, polarity))
 
     global_polarity = global_polarity / len(tweet_list)
-    return global_polarity
+    return global_polarity, report
 
 
 def recommending(df, forecast_out, global_polarity):
@@ -121,15 +124,17 @@ if __name__ == "__main__":
         actual_date = actual_date.strftime("%Y-%m-%d")
         past_date = past_date.strftime("%Y-%m-%d")
 
-        print "Retrieving Stock Data from introduced symbol..."
+        print("Retrieving Stock Data from introduced symbol...")
         dataframe = get_stock_data(symbol, past_date, actual_date)
-        print "Forecasting stock DataFrame..."
+        print("Forecasting stock DataFrame...")
         (dataframe, forecast_out) = stock_forecasting(dataframe)
-        print "Plotting existing and forecasted values..."
+        print("Plotting existing and forecasted values...")
         forecast_plot(dataframe)
-        print "Retrieving %s related tweets polarity..." % symbol
-        polarity = retrieving_tweets_polarity(symbol)
-        print "Generating recommendation based on prediction & polarity..."
+        print("Retrieving %s related tweets polarity..." % symbol)
+        polarity, report = retrieving_tweets_polarity(symbol)
+        print(report)
+        print(f"Global popularity: {polarity}")
+        print("Generating recommendation based on prediction & polarity...")
         recommending(dataframe, forecast_out, polarity)
 
 
